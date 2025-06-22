@@ -1,1 +1,1 @@
-["ghcr.io/myrepo/service1","ghcr.io/myrepo/service2","apa","ghcr.io/myrepo/service1:v1.0.0"]
+["linuxserver/nextcloud","ghcr.io/open-webui/open-webui","docker.io/openwebui/open-webui","ghcr.io/open-webui","ghcr.io/linuxserver/nextcloud","ghcr.io/library/nextcloud","ghcr.io/myrepo/service1","ghcr.io/myrepo/service2","apa","ghcr.io/myrepo/service1:v1.0.0"]
