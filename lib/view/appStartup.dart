@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import '../view/login.dart';
 import 'package:flutter/material.dart';
 
@@ -12,11 +14,23 @@ class _AppStartupState extends State<AppStartup> {
   bool _engineFailed = false;
   bool _isChecking = true;
 
+
   Future<bool> engineCheck() async {
-    //----------------------------------------make this check for docker engine existent, if no go to download, if yes go to login----------------------------------------
-    await Future.delayed(const Duration(seconds: 2));
-    // return false;
-    return true;
+    try {
+      await launchDockerDesktop();
+      await Future.delayed(const Duration(seconds: 5));
+      final result = await Process.run('docker', ['version']);
+
+      if (result.exitCode == 0) {
+        return true;
+      } else {
+        print('Docker error: ${result.stderr}');
+        return false;
+      }
+    } catch (e) {
+      print('Failed to check Docker engine: $e');
+      return false;
+    }
   }
 
   void _checkAndNavigate() async {
@@ -34,6 +48,18 @@ class _AppStartupState extends State<AppStartup> {
         _engineFailed = true;
         _isChecking = false;
       });
+    }
+  }
+
+  Future<void> launchDockerDesktop() async {
+    try {
+      await Process.start(
+        'cmd',
+        ['/C', 'start', '""', r'C:\Program Files\Docker\Docker\Docker Desktop.exe'],
+        runInShell: true,
+      );
+    } catch (e) {
+      print('Failed to launch Docker Desktop: $e');
     }
   }
 

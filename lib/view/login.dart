@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 import '../controller/statecontroller.dart';
 import '../view/homepage.dart';
@@ -53,6 +54,7 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     return Scaffold(
+      backgroundColor: Colors.blueAccent,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -61,8 +63,9 @@ class _LoginPageState extends State<LoginPage> {
               constraints: const BoxConstraints(maxWidth: 500),
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.grey.shade200,
+                color: const Color.fromRGBO(233, 233, 233, 1),
                 borderRadius: BorderRadius.circular(12),
+                boxShadow: const [BoxShadow(blurRadius: 10, color: Colors.black12)],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -153,28 +156,44 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 32),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 44,
-                    child: OutlinedButton.icon(
-                      onPressed: () {},
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.black),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      icon: Image.asset('assets/img/google.png', width: 20),
-                      label: const Text(
-                        'Sign in with Google',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w500,
-                        ),
+                  const SizedBox(height: 12),
+                  TextButton(
+                    onPressed: () async {
+                      const url = 'https://hub.docker.com/signup';
+                      if (await canLaunchUrl(Uri.parse(url))) {
+                        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                      }
+                    },
+                    child: const Text(
+                      "Don't have an account? Sign up on Docker",
+                      style: TextStyle(
+                        color: Colors.blueAccent,
+                        decoration: TextDecoration.underline,
                       ),
                     ),
                   ),
+                  // const SizedBox(height: 32),
+                  // SizedBox(
+                  //   width: double.infinity,
+                  //   height: 44,
+                  //   child: OutlinedButton.icon(
+                  //     onPressed: () {},
+                  //     style: OutlinedButton.styleFrom(
+                  //       side: const BorderSide(color: Colors.black),
+                  //       shape: RoundedRectangleBorder(
+                  //         borderRadius: BorderRadius.circular(8),
+                  //       ),
+                  //     ),
+                  //     icon: Image.asset('assets/img/google.png', width: 20),
+                  //     label: const Text(
+                  //       'Sign in with Google',
+                  //       style: TextStyle(
+                  //         color: Colors.black,
+                  //         fontWeight: FontWeight.w500,
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
             ),

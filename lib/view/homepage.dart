@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'dart:io';
 
 import '../controller/cpu.dart';
+import '../view/terminal.dart';
 import '../controller/ram.dart';
 import '../controller/runningContainer.dart';
+import '../controller/statecontroller.dart';
 import '../view/appbar.dart';
 import '../view/containerList.dart';
+import '../view/AIchat.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
@@ -28,7 +32,14 @@ class _HomepageState extends State<Homepage> {
 
   @override
   Widget build(BuildContext context) {
+    final stateController = Provider.of<StateController>(context);
     final double containerHeight = MediaQuery.of(context).size.height * 0.65;
+
+    if (stateController.devSet) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const TerminalPage()));
+      });
+    }
 
     return Scaffold(
       backgroundColor: const Color.fromRGBO(233, 233, 233, 1),
@@ -162,6 +173,26 @@ class _HomepageState extends State<Homepage> {
           ],
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return Dialog(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.6,
+                  height: 600,
+                  child: const AiChat(),
+                ),
+              );
+            },
+          );
+        },
+        backgroundColor: Colors.white,
+        child: const Icon(Icons.chat),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 

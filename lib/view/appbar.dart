@@ -24,7 +24,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     final selectedIndex = stateController.selectedIndex;
 
     return AppBar(
-      backgroundColor: Colors.white,
+      automaticallyImplyLeading: false,
+      backgroundColor: stateController.devSet ? Colors.black : Colors.white,
       elevation: 2,
       flexibleSpace: SafeArea(
         child: Stack(
@@ -55,14 +56,23 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             ),
             Align(
               alignment: Alignment.center,
-              child: Row(
+              child: stateController.devSet
+                  ? const Text(
+                "Dockbox Terminal",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              )
+                  : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: centerButtons ??
                     [
                       TextButton(
                         onPressed: () {
                           stateController.setSelectedIndex(0);
-                          Navigator.pushReplacement(context,MaterialPageRoute(builder: (context) => const Homepage()));
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Homepage()));
                         },
                         style: ButtonStyle(
                           padding: WidgetStateProperty.all(
@@ -88,7 +98,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       TextButton(
                         onPressed: () {
                           stateController.setSelectedIndex(1);
-                          Navigator.pushReplacement(context,MaterialPageRoute(builder: (context) => const Marketplace()));
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Marketplace()));
                         },
                         style: ButtonStyle(
                           padding: WidgetStateProperty.all(
@@ -113,6 +123,32 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ],
               ),
             ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 16.0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      "Dev Mode",
+                      style: TextStyle(
+                        color: stateController.devSet ? Colors.white : Colors.black,
+                        fontWeight: FontWeight.bold,
+                      )
+                    ),
+                    Switch(
+                      value: stateController.devSet,
+                      onChanged: (value) {
+                        stateController.setDevSet(value);
+                      },
+                      activeColor: stateController.devSet ? Colors.white : Colors.black,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           ],
         ),
       ),

@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import '../view/terminal.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 
 import '../controller/aiSearch.dart';
+import '../controller/statecontroller.dart';
 import '../view/appbar.dart';
 
 class Marketplace extends StatefulWidget {
@@ -33,6 +36,7 @@ class _MarketplaceState extends State<Marketplace> {
   bool _imageExists = true;
   bool _isGhcr = true;
   //pulling and saving image
+  double _downloadProgress = 0.0;
   bool _pulled = false;
   bool _isRunning = false;
   bool _isweb = false;
@@ -54,6 +58,14 @@ class _MarketplaceState extends State<Marketplace> {
 
   @override
   Widget build(BuildContext context) {
+    final stateController = Provider.of<StateController>(context);
+
+    if (stateController.devSet) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const TerminalPage()));
+      });
+    }
+
     return Scaffold(
         backgroundColor: const Color(0xFFF3F4F6),
         appBar: CustomAppBar(),
@@ -215,6 +227,14 @@ class _MarketplaceState extends State<Marketplace> {
                                     ),
                                   )
                                       : const Text('Pull'),
+                                ),
+                              const SizedBox(height: 12),
+                              if (_isPulling)
+                                LinearProgressIndicator(
+                                  value: _downloadProgress,
+                                  backgroundColor: Colors.grey[300],
+                                  color: Colors.blueAccent,
+                                  minHeight: 8,
                                 ),
 
                               const SizedBox(height: 20),
@@ -596,69 +616,110 @@ class _MarketplaceState extends State<Marketplace> {
   void _pullImage(String imageName) async {
     setState(() {
       _isPulling = true;
+      _downloadProgress = 0.0;
+      _pulled = false;
     });
 
     try {
-      final pullResult = await Process.run('docker', ['pull', imageName]);
-      print(pullResult.stdout);
-      if (pullResult.exitCode != 0) {
-        print('Failed to pull image: ${pullResult.stderr}');
-        addLogEntry('Failed to pull image: ${pullResult.stderr}');
+      final process = await Process.start('docker', ['pull', imageName]);
+      final stdoutLines = process.stdout.transform(utf8.decoder).transform(const LineSplitter());
+      final stderrLines = process.stderr.transform(utf8.decoder).transform(const LineSplitter());
+
+      final Set<String> layerIds = {};
+      final Set<String> pulledLayers = {};
+
+      await for (final line in stdoutLines) {
+        final matchLayer = RegExp(r'([a-f0-9]{12}): Pulling fs layer').firstMatch(line);
+        if (matchLayer != null) {
+          final layerId = matchLayer.group(1)!;
+          layerIds.add(layerId);
+          setState(() {
+            _downloadProgress = 0.0;
+          });
+        }
+
+        final matchPulled = RegExp(r'([a-f0-9]{12}): (Pull complete|Already exists)').firstMatch(line);
+        if (matchPulled != null) {
+          final layerId = matchPulled.group(1)!;
+          pulledLayers.add(layerId);
+
+          if (layerIds.isNotEmpty) {
+            setState(() {
+              _downloadProgress = pulledLayers.length / layerIds.length;
+            });
+          }
+        }
+        print(line);
+      }
+
+      await for (final err in stderrLines) {
+        print('stderr: $err');
+        addLogEntry('stderr: $err');
+      }
+
+      final exitCode = await process.exitCode;
+      if (exitCode != 0) {
+        addLogEntry('Failed to pull image: exit code $exitCode');
         setState(() {
           _isPulling = false;
         });
         return;
+      }
+
+      if (layerIds.isEmpty) {
+        const duration = Duration(milliseconds: 100);
+        const totalDuration = Duration(seconds: 20);
+        final int ticks = totalDuration.inMilliseconds ~/ duration.inMilliseconds;
+        int currentTick = 0;
+
+        Timer.periodic(duration, (timer) {
+          currentTick++;
+          setState(() {
+            _downloadProgress = currentTick / ticks;
+          });
+
+          if (currentTick >= ticks) {
+            timer.cancel();
+            setState(() {
+              _downloadProgress = 1.0;
+            });
+          }
+        });
       }
 
       final dir = Directory('pulledImages');
-      if (!await dir.exists()) {
-        await dir.create(recursive: true);
-      }
-
+      if (!await dir.exists()) await dir.create(recursive: true);
       final sanitizedImageName = imageName.replaceAll('/', '_').replaceAll(':', '_');
       final outputPath = '${dir.path}/$sanitizedImageName.tar';
-
-      // Check if image is already saved
       final file = File(outputPath);
+
       if (await file.exists()) {
-        print('Image already saved at $outputPath');
-        addLogEntry('Image: $sanitizedImageName already saved at $outputPath');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Image already saved at $outputPath"),
-            backgroundColor: Colors.green.shade700,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        setState(() {
-          _isPulling = false;
-          _pulled = true;
-        });
-        await _inspectExposedPorts(imageName);
-        return;
+        addLogEntry('Image already saved at $outputPath');
+      } else {
+        final saveResult = await Process.run('docker', ['save', '-o', outputPath, imageName]);
+        if (saveResult.exitCode != 0) {
+          addLogEntry('Failed to save image: ${saveResult.stderr}');
+        } else {
+          addLogEntry('Image saved to $outputPath');
+        }
       }
 
-      final saveResult = await Process.run('docker', ['save', '-o', outputPath, imageName]);
-      print(saveResult.stdout);
-      if (saveResult.exitCode != 0) {
-        print('Failed to save image: ${saveResult.stderr}');
-        addLogEntry('Failed to save image: ${saveResult.stderr}');
-      } else {
-        print('Image saved to $outputPath');
-        addLogEntry('Image saved to $outputPath');
-      }
+      await _inspectExposedPorts(imageName);
+
+      setState(() {
+        _isPulling = false;
+        _pulled = true;
+      });
     } catch (e) {
       print('Error during image pull/save: $e');
       addLogEntry('Error during image pull/save: $e');
+      setState(() {
+        _isPulling = false;
+        _downloadProgress = 0.0;
+      });
     }
-
-    await _inspectExposedPorts(imageName);
-
-    setState(() {
-      _isPulling = false;
-      _pulled = true;
-    });
   }
+
 
   Future<void> _inspectExposedPorts(String imageName) async {
     final inspectResult = await Process.run('docker', ['inspect', imageName]);

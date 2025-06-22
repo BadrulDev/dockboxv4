@@ -178,6 +178,31 @@ class _DockerContainerListState extends State<DockerContainerList> {
 
     await Process.run('docker', [command, container.name]);
 
+    if (!container.isRunning) {
+      final inspectResult = await Process.run('docker', ['inspect', container.name]);
+      if (inspectResult.exitCode == 0) {
+        final inspectJson = jsonDecode(inspectResult.stdout);
+        if (inspectJson is List && inspectJson.isNotEmpty) {
+          final networkSettings = inspectJson[0]['NetworkSettings'];
+          if (networkSettings != null && networkSettings['Ports'] != null) {
+            final ports = networkSettings['Ports'] as Map<String, dynamic>;
+            String portLog = '';
+            ports.forEach((containerPort, mappings) {
+              if (mappings != null && mappings is List && mappings.isNotEmpty) {
+                for (var mapping in mappings) {
+                  portLog +=
+                  "Container '${container.name}' started at port: ${mapping['HostPort']}:$containerPort\n";
+                }
+              }
+            });
+            if (portLog.isNotEmpty) {
+              widget.addLog(portLog.trim());
+            }
+          }
+        }
+      }
+    }
+
     setState(() {
       _futureContainers = getDockerContainers();
     });
